@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { assets, evidence, verificationRequests } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { NotFoundException } from "../lib/exceptions";
 import { VerificationStatus } from "../lib/enums";
 import { createSuccessResponse, type SuccessResponse } from "../dtos/base.dto";
@@ -31,6 +31,34 @@ export async function createVerificationRequest(
     throw new NotFoundException("Asset not found");
   }
 
+  // Check for existing PENDING request (idempotency)
+  const providerCondition = input.providerId
+    ? eq(verificationRequests.providerId, input.providerId)
+    : isNull(verificationRequests.providerId);
+
+  const existingRequest = await db
+    .select()
+    .from(verificationRequests)
+    .where(
+      and(
+        eq(verificationRequests.assetId, input.assetId),
+        eq(verificationRequests.requestType, input.requestType),
+        providerCondition,
+        eq(verificationRequests.requestedBy, authUser.address.toLowerCase()),
+        eq(verificationRequests.status, VerificationStatus.PENDING)
+      )
+    )
+    .limit(1);
+
+  // If PENDING request already exists, return it (idempotent)
+  if (existingRequest.length > 0) {
+    return createSuccessResponse(
+      formatVerificationRequestResponse(existingRequest[0]),
+      "Verification request already exists"
+    );
+  }
+
+  // Create new request
   const requestId = generateRequestId();
 
   const inserted = await db

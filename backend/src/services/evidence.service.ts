@@ -61,6 +61,17 @@ export async function getEvidenceByHash(dataHash: string): Promise<SuccessRespon
 }
 
 export async function getEvidenceByAssetId(assetId: number): Promise<SuccessResponse<EvidenceResponse[]>> {
+  // Validate that asset exists
+  const assetExists = await db
+    .select({ id: assets.id })
+    .from(assets)
+    .where(eq(assets.assetId, assetId))
+    .limit(1);
+
+  if (assetExists.length === 0) {
+    throw new NotFoundException("Asset not found");
+  }
+
   const results = await db
     .select()
     .from(evidence)
