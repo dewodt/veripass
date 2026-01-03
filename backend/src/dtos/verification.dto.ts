@@ -1,13 +1,11 @@
 import { z } from "zod";
 import { VerificationStatus } from "../lib/enums";
-
-const ethereumAddressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/);
+import type { VerificationRequest } from "../db/schema";
 
 export const createVerificationRequestSchema = z.object({
   assetId: z.number().int().positive(),
   requestType: z.enum(["SERVICE_VERIFICATION", "AUTHENTICITY_CHECK"]),
   providerId: z.string().max(255).optional(),
-  requestedBy: ethereumAddressSchema,
 });
 
 export const updateVerificationRequestSchema = z.object({
@@ -52,4 +50,25 @@ export interface VerificationRequestResponse {
   errorMessage: string | null;
   createdAt: string;
   processedAt: string | null;
+}
+
+export function formatVerificationRequestResponse(
+  req: VerificationRequest
+): VerificationRequestResponse {
+  return {
+    id: req.id,
+    requestId: req.requestId,
+    assetId: Number(req.assetId),
+    requestType: req.requestType,
+    providerId: req.providerId,
+    requestedBy: req.requestedBy,
+    status: req.status,
+    blockchainEventId: req.blockchainEventId ? Number(req.blockchainEventId) : null,
+    txHash: req.txHash,
+    dataHash: req.dataHash,
+    evidenceId: req.evidenceId ? Number(req.evidenceId) : null,
+    errorMessage: req.errorMessage,
+    createdAt: req.createdAt.toISOString(),
+    processedAt: req.processedAt?.toISOString() || null,
+  };
 }

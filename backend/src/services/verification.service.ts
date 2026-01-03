@@ -1,22 +1,36 @@
 import { db } from "../db";
-import { verificationRequests } from "../db/schema";
+import { assets, evidence, verificationRequests } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { NotFoundException } from "../lib/exceptions";
 import { VerificationStatus } from "../lib/enums";
 import { createSuccessResponse, type SuccessResponse } from "../dtos/base.dto";
-import type {
-  CreateVerificationRequestInput,
-  UpdateVerificationRequestInput,
-  VerificationRequestResponse,
+import {
+  type CreateVerificationRequestInput,
+  type UpdateVerificationRequestInput,
+  type VerificationRequestResponse,
+  formatVerificationRequestResponse
 } from "../dtos/verification.dto";
+import type { AuthUser } from "../types";
 
 function generateRequestId(): string {
-  return `VR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `VR-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 export async function createVerificationRequest(
-  input: CreateVerificationRequestInput
+  input: CreateVerificationRequestInput,
+  authUser: AuthUser
 ): Promise<SuccessResponse<VerificationRequestResponse>> {
+  // Validate that asset exists
+  const assetExists = await db
+    .select({ id: assets.id })
+    .from(assets)
+    .where(eq(assets.assetId, input.assetId))
+    .limit(1);
+
+  if (assetExists.length === 0) {
+    throw new NotFoundException("Asset not found");
+  }
+
   const requestId = generateRequestId();
 
   const inserted = await db
@@ -26,7 +40,7 @@ export async function createVerificationRequest(
       assetId: input.assetId,
       requestType: input.requestType,
       providerId: input.providerId || null,
-      requestedBy: input.requestedBy.toLowerCase(),
+      requestedBy: authUser.address.toLowerCase(),
       status: VerificationStatus.PENDING,
     })
     .returning();
@@ -49,6 +63,19 @@ export async function updateVerificationRequest(
   requestId: string,
   input: UpdateVerificationRequestInput
 ): Promise<SuccessResponse<VerificationRequestResponse>> {
+  // Validate that evidence exists if evidenceId is provided
+  if (input.evidenceId !== undefined) {
+    const evidenceExists = await db
+      .select({ id: evidence.id })
+      .from(evidence)
+      .where(eq(evidence.id, input.evidenceId))
+      .limit(1);
+
+    if (evidenceExists.length === 0) {
+      throw new NotFoundException("Evidence not found");
+    }
+  }
+
   const updates: Record<string, unknown> = {
     status: input.status,
   };
@@ -79,25 +106,4 @@ export async function updateVerificationRequest(
   }
 
   return createSuccessResponse(formatVerificationRequestResponse(updated[0]), "Verification request updated successfully");
-}
-
-function formatVerificationRequestResponse(
-  req: typeof verificationRequests.$inferSelect
-): VerificationRequestResponse {
-  return {
-    id: req.id,
-    requestId: req.requestId,
-    assetId: req.assetId,
-    requestType: req.requestType,
-    providerId: req.providerId,
-    requestedBy: req.requestedBy,
-    status: req.status,
-    blockchainEventId: req.blockchainEventId,
-    txHash: req.txHash,
-    dataHash: req.dataHash,
-    evidenceId: req.evidenceId,
-    errorMessage: req.errorMessage,
-    createdAt: req.createdAt.toISOString(),
-    processedAt: req.processedAt?.toISOString() || null,
-  };
 }

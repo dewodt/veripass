@@ -8,14 +8,15 @@ import {
   AssetIdParam,
   HashParam
 } from "../dtos/asset.dto";
-import { authMiddleware } from "../middlewares/auth.middleware";
+import { authMiddleware, getAuthUser } from "../middlewares/auth.middleware";
 import { validate, getValidated, ValidationTarget } from "../middlewares/validate.middleware";
 
 const assetRouter = new Hono();
 
 assetRouter.post("/", authMiddleware, validate({ schema: createAssetSchema }), async (c) => {
   const body = getValidated<CreateAssetInput>(c, ValidationTarget.BODY);
-  const result = await createAsset(body);
+  const user = getAuthUser(c);
+  const result = await createAsset(body, user);
   return c.json(result, 201);
 });
 

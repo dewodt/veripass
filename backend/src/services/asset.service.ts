@@ -4,9 +4,13 @@ import { eq } from "drizzle-orm";
 import { calculateHash } from "../lib/hash";
 import { NotFoundException, ConflictException } from "../lib/exceptions";
 import { createSuccessResponse, type SuccessResponse } from "../dtos/base.dto";
-import type { CreateAssetInput, AssetResponse } from "../dtos/asset.dto";
+import { type CreateAssetInput, type AssetResponse, formatAssetResponse } from "../dtos/asset.dto";
+import type { AuthUser } from "../types";
 
-export async function createAsset(input: CreateAssetInput): Promise<SuccessResponse<AssetResponse>> {
+export async function createAsset(
+  input: CreateAssetInput,
+  authUser: AuthUser
+): Promise<SuccessResponse<AssetResponse>> {
   // Check if asset already exists
   const existing = await db
     .select()
@@ -42,13 +46,19 @@ export async function createAsset(input: CreateAssetInput): Promise<SuccessRespo
       description: input.description || null,
       images: input.images || [],
       metadata: input.metadata || null,
+      createdBy: authUser.address,
     })
     .returning();
 
-  return createSuccessResponse(formatAssetResponse(inserted[0]), "Asset created successfully");
+  return createSuccessResponse(
+    formatAssetResponse(inserted[0]),
+    "Asset created successfully"
+  );
 }
 
-export async function getAssetByHash(dataHash: string): Promise<SuccessResponse<AssetResponse>> {
+export async function getAssetByHash(
+  dataHash: string
+): Promise<SuccessResponse<AssetResponse>> {
   const result = await db
     .select()
     .from(assets)
@@ -59,10 +69,15 @@ export async function getAssetByHash(dataHash: string): Promise<SuccessResponse<
     throw new NotFoundException("Asset not found");
   }
 
-  return createSuccessResponse(formatAssetResponse(result[0]), "Asset retrieved successfully");
+  return createSuccessResponse(
+    formatAssetResponse(result[0]),
+    "Asset retrieved successfully"
+  );
 }
 
-export async function getAssetById(assetId: number): Promise<SuccessResponse<AssetResponse>> {
+export async function getAssetById(
+  assetId: number
+): Promise<SuccessResponse<AssetResponse>> {
   const result = await db
     .select()
     .from(assets)
@@ -73,21 +88,8 @@ export async function getAssetById(assetId: number): Promise<SuccessResponse<Ass
     throw new NotFoundException("Asset not found");
   }
 
-  return createSuccessResponse(formatAssetResponse(result[0]), "Asset retrieved successfully");
-}
-
-function formatAssetResponse(asset: typeof assets.$inferSelect): AssetResponse {
-  return {
-    id: asset.id,
-    assetId: asset.assetId,
-    dataHash: asset.dataHash,
-    manufacturer: asset.manufacturer,
-    model: asset.model,
-    serialNumber: asset.serialNumber,
-    manufacturedDate: asset.manufacturedDate,
-    description: asset.description,
-    images: (asset.images as string[]) || [],
-    metadata: asset.metadata as Record<string, unknown> | null,
-    createdAt: asset.createdAt.toISOString(),
-  };
+  return createSuccessResponse(
+    formatAssetResponse(result[0]),
+    "Asset retrieved successfully"
+  );
 }

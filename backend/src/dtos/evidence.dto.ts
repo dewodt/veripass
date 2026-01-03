@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { EventType } from "../lib/enums";
+import type { Evidence } from "../db/schema";
 
 export const createEvidenceSchema = z.object({
   assetId: z.number().int().positive(),
@@ -47,6 +48,29 @@ export interface EvidenceResponse {
   verifiedBy: string | null;
   blockchainEventId: number | null;
   txHash: string | null;
+  createdBy: string;
   createdAt: string;
   verifiedAt: string | null;
+}
+
+export function formatEvidenceResponse(ev: Evidence): EvidenceResponse {
+  return {
+    id: ev.id,
+    assetId: Number(ev.assetId),
+    dataHash: ev.dataHash,
+    eventType: ev.eventType,
+    eventDate: ev.eventDate,
+    providerId: ev.providerId,
+    providerName: ev.providerName,
+    description: ev.description,
+    files: (ev.files as Array<{ url: string; type: string; name: string }>) || [],
+    metadata: ev.metadata as Record<string, unknown> | null,
+    isVerified: ev.isVerified,
+    verifiedBy: ev.verifiedBy,
+    blockchainEventId: ev.blockchainEventId ? Number(ev.blockchainEventId) : null,
+    txHash: ev.txHash,
+    createdBy: ev.createdBy,
+    createdAt: ev.createdAt.toISOString(),
+    verifiedAt: ev.verifiedAt?.toISOString() || null,
+  };
 }

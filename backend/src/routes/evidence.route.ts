@@ -12,14 +12,15 @@ import {
   AssetIdParam,
   HashParam
 } from "../dtos/evidence.dto";
-import { authMiddleware } from "../middlewares/auth.middleware";
+import { authMiddleware, getAuthUser } from "../middlewares/auth.middleware";
 import { validate, getValidated, ValidationTarget } from "../middlewares/validate.middleware";
 
 const evidenceRouter = new Hono();
 
 evidenceRouter.post("/", authMiddleware, validate({ schema: createEvidenceSchema }), async (c) => {
   const body = getValidated<CreateEvidenceInput>(c, ValidationTarget.BODY);
-  const result = await createEvidence(body);
+  const user = getAuthUser(c);
+  const result = await createEvidence(body, user);
   return c.json(result, 201);
 });
 

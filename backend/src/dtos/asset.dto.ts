@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Asset } from "../db/schema";
 
 export const createAssetSchema = z.object({
   assetId: z.number().int().positive(),
@@ -34,5 +35,23 @@ export interface AssetResponse {
   description: string | null;
   images: string[];
   metadata: Record<string, unknown> | null;
+  createdBy: string;
   createdAt: string;
+}
+
+export function formatAssetResponse(asset: Asset): AssetResponse {
+  return {
+    id: asset.id,
+    assetId: Number(asset.assetId),
+    dataHash: asset.dataHash,
+    manufacturer: asset.manufacturer,
+    model: asset.model,
+    serialNumber: asset.serialNumber,
+    manufacturedDate: asset.manufacturedDate,
+    description: asset.description,
+    images: (asset.images as string[]) || [],
+    metadata: asset.metadata as Record<string, unknown> | null,
+    createdBy: asset.createdBy,
+    createdAt: asset.createdAt.toISOString(),
+  };
 }

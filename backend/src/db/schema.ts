@@ -8,11 +8,14 @@ import {
   boolean,
   jsonb,
   index,
+  foreignKey,
 } from "drizzle-orm/pg-core";
 
 // ============================================================
 // ASSETS TABLE
 // ============================================================
+// Note: `id` is the database primary key (auto-increment for internal use)
+//       `assetId` is the blockchain asset ID that matches the smart contract
 
 export const assets = pgTable(
   "assets",
@@ -34,12 +37,14 @@ export const assets = pgTable(
     images: jsonb("images").$type<string[]>(), // Array of image URLs
     metadata: jsonb("metadata").$type<Record<string, unknown>>(), // Any extra fields
 
+    // Tracking
+    createdBy: varchar("created_by", { length: 42 }).notNull(), // User wallet address
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => ({
-    assetIdIdx: index("asset_id_idx").on(table.assetId),
-    dataHashIdx: index("data_hash_idx").on(table.dataHash),
-  })
+  (table) => [
+    index("asset_id_idx").on(table.assetId),
+    index("data_hash_idx").on(table.dataHash),
+  ]
 );
 
 // ============================================================
@@ -72,13 +77,22 @@ export const evidence = pgTable(
     blockchainEventId: bigint("blockchain_event_id", { mode: "number" }),
     txHash: varchar("tx_hash", { length: 66 }),
 
+    // Tracking
+    createdBy: varchar("created_by", { length: 42 }).notNull(), // User wallet address
     createdAt: timestamp("created_at").defaultNow().notNull(),
     verifiedAt: timestamp("verified_at"),
   },
-  (table) => ({
-    assetIdIdx: index("evidence_asset_id_idx").on(table.assetId),
-    dataHashIdx: index("evidence_data_hash_idx").on(table.dataHash),
-  })
+  (table) => [
+    index("evidence_asset_id_idx").on(table.assetId),
+    index("evidence_data_hash_idx").on(table.dataHash),
+    foreignKey({
+      columns: [table.assetId],
+      foreignColumns: [assets.assetId],
+      name: "evidence_asset_id_fk",
+    })
+      .onDelete("cascade")
+      .onUpdate("cascade"),
+  ]
 );
 
 // ============================================================
@@ -97,6 +111,8 @@ export const serviceProviders = pgTable("service_providers", {
 // ============================================================
 // SERVICE RECORDS (Dummy data that oracle fetches)
 // ============================================================
+// Note: `id` is the database primary key (auto-increment for internal use)
+//       `recordId` is the business identifier (e.g., "SR-001")
 
 export const serviceRecords = pgTable(
   "service_records",
@@ -119,14 +135,23 @@ export const serviceRecords = pgTable(
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => ({
-    assetIdIdx: index("service_records_asset_id_idx").on(table.assetId),
-  })
+  (table) => [
+    index("service_records_asset_id_idx").on(table.assetId),
+    foreignKey({
+      columns: [table.assetId],
+      foreignColumns: [assets.assetId],
+      name: "service_records_asset_id_fk",
+    })
+      .onDelete("cascade")
+      .onUpdate("cascade"),
+  ]
 );
 
 // ============================================================
 // VERIFICATION REQUESTS (Oracle queue)
 // ============================================================
+// Note: `id` is the database primary key (auto-increment for internal use)
+//       `requestId` is the business identifier (e.g., "VR-1704278400000-abc123def")
 
 export const verificationRequests = pgTable(
   "verification_requests",
@@ -152,9 +177,25 @@ export const verificationRequests = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     processedAt: timestamp("processed_at"),
   },
-  (table) => ({
-    statusIdx: index("verification_requests_status_idx").on(table.status),
-  })
+  (table) => [
+    index("verification_requests_status_idx").on(table.status),
+    index("verification_requests_asset_id_idx").on(table.assetId),
+    index("verification_requests_evidence_id_idx").on(table.evidenceId),
+    foreignKey({
+      columns: [table.assetId],
+      foreignColumns: [assets.assetId],
+      name: "verification_requests_asset_id_fk",
+    })
+      .onDelete("restrict")
+      .onUpdate("cascade"),
+    foreignKey({
+      columns: [table.evidenceId],
+      foreignColumns: [evidence.id],
+      name: "verification_requests_evidence_id_fk",
+    })
+      .onDelete("set null")
+      .onUpdate("cascade"),
+  ]
 );
 
 // ============================================================
@@ -170,9 +211,9 @@ export const authNonces = pgTable(
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => ({
-    addressIdx: index("auth_nonces_address_idx").on(table.address),
-  })
+  (table) => [
+    index("auth_nonces_address_idx").on(table.address),
+  ]
 );
 
 // ============================================================

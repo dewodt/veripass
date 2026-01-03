@@ -9,6 +9,7 @@ CREATE TABLE "assets" (
 	"description" text,
 	"images" jsonb,
 	"metadata" jsonb,
+	"created_by" varchar(42) NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "assets_asset_id_unique" UNIQUE("asset_id"),
 	CONSTRAINT "assets_data_hash_unique" UNIQUE("data_hash")
@@ -38,6 +39,7 @@ CREATE TABLE "evidence" (
 	"verified_by" varchar(42),
 	"blockchain_event_id" bigint,
 	"tx_hash" varchar(66),
+	"created_by" varchar(42) NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"verified_at" timestamp,
 	CONSTRAINT "evidence_data_hash_unique" UNIQUE("data_hash")
@@ -86,10 +88,16 @@ CREATE TABLE "verification_requests" (
 	CONSTRAINT "verification_requests_request_id_unique" UNIQUE("request_id")
 );
 --> statement-breakpoint
+ALTER TABLE "evidence" ADD CONSTRAINT "evidence_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."assets"("asset_id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "service_records" ADD CONSTRAINT "service_records_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."assets"("asset_id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "verification_requests" ADD CONSTRAINT "verification_requests_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."assets"("asset_id") ON DELETE restrict ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "verification_requests" ADD CONSTRAINT "verification_requests_evidence_id_fk" FOREIGN KEY ("evidence_id") REFERENCES "public"."evidence"("id") ON DELETE set null ON UPDATE cascade;--> statement-breakpoint
 CREATE INDEX "asset_id_idx" ON "assets" USING btree ("asset_id");--> statement-breakpoint
 CREATE INDEX "data_hash_idx" ON "assets" USING btree ("data_hash");--> statement-breakpoint
 CREATE INDEX "auth_nonces_address_idx" ON "auth_nonces" USING btree ("address");--> statement-breakpoint
 CREATE INDEX "evidence_asset_id_idx" ON "evidence" USING btree ("asset_id");--> statement-breakpoint
 CREATE INDEX "evidence_data_hash_idx" ON "evidence" USING btree ("data_hash");--> statement-breakpoint
 CREATE INDEX "service_records_asset_id_idx" ON "service_records" USING btree ("asset_id");--> statement-breakpoint
-CREATE INDEX "verification_requests_status_idx" ON "verification_requests" USING btree ("status");
+CREATE INDEX "verification_requests_status_idx" ON "verification_requests" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "verification_requests_asset_id_idx" ON "verification_requests" USING btree ("asset_id");--> statement-breakpoint
+CREATE INDEX "verification_requests_evidence_id_idx" ON "verification_requests" USING btree ("evidence_id");

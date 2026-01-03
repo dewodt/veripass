@@ -12,14 +12,16 @@ import {
   UpdateVerificationRequestInput,
   RequestIdParam,
 } from "../dtos/verification.dto";
+import { authMiddleware, getAuthUser } from "../middlewares/auth.middleware";
 import { oracleAuthMiddleware } from "../middlewares/oracle.middleware";
 import { validate, getValidated, ValidationTarget } from "../middlewares/validate.middleware";
 
 const verificationRouter = new Hono();
 
-verificationRouter.post("/", validate({ schema: createVerificationRequestSchema }), async (c) => {
+verificationRouter.post("/", authMiddleware, validate({ schema: createVerificationRequestSchema }), async (c) => {
   const body = getValidated<CreateVerificationRequestInput>(c, ValidationTarget.BODY);
-  const result = await createVerificationRequest(body);
+  const user = getAuthUser(c);
+  const result = await createVerificationRequest(body, user);
   return c.json(result, 201);
 });
 
