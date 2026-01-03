@@ -1,10 +1,10 @@
 import { checkOracleRegistration, oracleWallet, provider } from "./blockchain";
 import { backendClient } from "./backend-client";
 import { processVerificationRequest } from "./verifier";
-import { config } from "./config";
+import { config } from "../lib/config";
 import { ethers } from "ethers";
 
-class OracleWorker {
+export class OracleWorker {
   private isRunning = false;
   private intervalId: NodeJS.Timeout | null = null;
 
@@ -33,10 +33,10 @@ class OracleWorker {
 
     // Start polling
     this.isRunning = true;
-    console.log(`🔄 Polling every ${config.pollInterval}ms\n`);
+    console.log(`🔄 Polling every ${config.oracle.pollInterval}ms\n`);
 
     this.poll();
-    this.intervalId = setInterval(() => this.poll(), config.pollInterval);
+    this.intervalId = setInterval(() => this.poll(), config.oracle.pollInterval);
 
     process.on("SIGINT", () => this.stop());
     process.on("SIGTERM", () => this.stop());
@@ -70,6 +70,3 @@ class OracleWorker {
     process.exit(0);
   }
 }
-
-const oracle = new OracleWorker();
-oracle.start();

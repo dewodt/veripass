@@ -1,12 +1,12 @@
 import { ethers } from "ethers";
-import { config } from "./config";
-import EventRegistryABI from "../../shared/abi/EventRegistry.json";
+import { config } from "../lib/config";
+import EventRegistryABI from "../../../shared/abi/EventRegistry.json";
 
-export const provider = new ethers.JsonRpcProvider(config.sepoliaRpcUrl);
-export const oracleWallet = new ethers.Wallet(config.oraclePrivateKey, provider);
+export const provider = new ethers.JsonRpcProvider(config.blockchain.sepoliaRpcUrl);
+export const oracleWallet = new ethers.Wallet(config.oracle.privateKey!, provider);
 
 export const eventRegistry = new ethers.Contract(
-  config.eventRegistryAddress,
+  config.blockchain.eventRegistryAddress,
   EventRegistryABI,
   oracleWallet
 );

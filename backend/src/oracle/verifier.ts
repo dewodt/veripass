@@ -1,9 +1,9 @@
 import { ethers } from "ethers";
 import { submitVerifiedEvent, oracleWallet } from "./blockchain";
 import { backendClient } from "./backend-client";
-import type { VerificationRequest } from "./types";
+import type { VerificationRequestResponse } from "../dtos/verification.dto";
 
-export async function processVerificationRequest(request: VerificationRequest): Promise<void> {
+export async function processVerificationRequest(request: VerificationRequestResponse): Promise<void> {
   console.log(`\n🔍 Processing request: ${request.requestId}`);
 
   try {
