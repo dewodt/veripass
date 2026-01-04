@@ -7,19 +7,22 @@ import EventRegistryABI from '../../../shared/abi/EventRegistry.json'
 
 export { AssetPassportABI, EventRegistryABI }
 
+// Get contract addresses from environment variables
+const ASSET_PASSPORT_ADDRESS = import.meta.env.VITE_ASSET_PASSPORT_ADDRESS as Address
+const EVENT_REGISTRY_ADDRESS = import.meta.env.VITE_EVENT_REGISTRY_ADDRESS as Address
+
 // Contract addresses by chain ID
-// Update these after deployment
 const contractAddresses: Record<
   number,
   { assetPassport: Address; eventRegistry: Address }
 > = {
   [sepolia.id]: {
-    assetPassport: '0x0000000000000000000000000000000000000000' as Address,
-    eventRegistry: '0x0000000000000000000000000000000000000000' as Address,
+    assetPassport: ASSET_PASSPORT_ADDRESS,
+    eventRegistry: EVENT_REGISTRY_ADDRESS,
   },
   [hardhat.id]: {
-    assetPassport: '0x5FbDB2315678afecb367f032d93F642f64180aa3' as Address,
-    eventRegistry: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512' as Address,
+    assetPassport: ASSET_PASSPORT_ADDRESS,
+    eventRegistry: EVENT_REGISTRY_ADDRESS,
   },
 }
 
@@ -33,3 +36,4 @@ export function getContractAddresses(chainId: number) {
 
 // Default to sepolia
 export const DEFAULT_CHAIN_ID = sepolia.id
+
