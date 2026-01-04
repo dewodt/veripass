@@ -1,4 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { modalOverlayVariants, modalContentVariants } from '@/lib/animations';
 
 interface ModalProps {
   isOpen: boolean;
@@ -39,52 +41,76 @@ export function Modal({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 transition-opacity"
-        onClick={onClose}
-      />
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center">
+          {/* Backdrop */}
+          <motion.div
+            variants={modalOverlayVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="absolute inset-0 bg-[rgba(15,15,15,0.6)]"
+            onClick={onClose}
+          />
 
-      {/* Modal */}
-      <div
-        className={`
-          relative bg-white rounded-lg shadow-xl w-full mx-4
-          transform transition-all
-          ${sizeStyles[size]}
-        `}
-      >
-        {/* Header */}
-        {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
+          {/* Modal */}
+          <motion.div
+            variants={modalContentVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className={`
+              relative
+              bg-[var(--color-bg-primary)]
+              rounded-[var(--radius-xl)]
+              shadow-[var(--shadow-lg)]
+              w-full mx-[var(--spacing-4)]
+              ${sizeStyles[size]}
+            `}
+          >
+            {/* Header */}
+            {title && (
+              <div className="flex items-center justify-between px-[var(--spacing-6)] py-[var(--spacing-4)] border-b border-[var(--color-border)]">
+                <h2 className="text-[var(--font-size-lg)] font-semibold text-[var(--color-text-primary)]">
+                  {title}
+                </h2>
+                <button
+                  onClick={onClose}
+                  className="
+                    p-[var(--spacing-1)]
+                    text-[var(--color-text-muted)]
+                    hover:text-[var(--color-text-primary)]
+                    hover:bg-[var(--color-bg-hover)]
+                    rounded-[var(--radius-md)]
+                    transition-colors duration-[var(--transition-fast)]
+                  "
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )}
 
-        {/* Body */}
-        <div className="px-6 py-4">{children}</div>
-      </div>
-    </div>
+            {/* Body */}
+            <div className="px-[var(--spacing-6)] py-[var(--spacing-4)]">
+              {children}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }

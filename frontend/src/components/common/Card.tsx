@@ -1,57 +1,86 @@
-import type { ReactNode } from 'react';
+import { forwardRef, type ReactNode, type HTMLAttributes } from 'react';
+import { motion, type HTMLMotionProps } from 'framer-motion';
+import { interactiveCard } from '@/lib/animations';
 
-interface CardProps {
+interface CardProps extends Omit<HTMLMotionProps<'div'>, 'children'> {
   children: ReactNode;
-  className?: string;
   hover?: boolean;
-  onClick?: () => void;
+  interactive?: boolean;
 }
 
-interface CardHeaderProps {
+interface CardSectionProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
-  className?: string;
 }
 
-interface CardBodyProps {
-  children: ReactNode;
-  className?: string;
-}
+export const Card = forwardRef<HTMLDivElement, CardProps>(
+  ({ children, className = '', hover = false, interactive = false, onClick, ...props }, ref) => {
+    const isClickable = hover || interactive || !!onClick;
 
-interface CardFooterProps {
-  children: ReactNode;
-  className?: string;
-}
+    return (
+      <motion.div
+        ref={ref}
+        variants={isClickable ? interactiveCard : undefined}
+        initial={isClickable ? 'rest' : undefined}
+        whileHover={isClickable ? 'hover' : undefined}
+        whileTap={isClickable ? 'tap' : undefined}
+        className={`
+          bg-[var(--color-bg-primary)]
+          rounded-[var(--radius-lg)]
+          border border-[var(--color-border)]
+          shadow-[var(--shadow-sm)]
+          transition-[border-color] duration-[var(--transition-fast)]
+          ${isClickable ? 'cursor-pointer hover:border-[var(--color-border-hover)]' : ''}
+          ${className}
+        `}
+        onClick={onClick}
+        {...props}
+      >
+        {children}
+      </motion.div>
+    );
+  }
+);
 
-export function Card({ children, className = '', hover = false, onClick }: CardProps) {
+Card.displayName = 'Card';
+
+export function CardHeader({ children, className = '', ...props }: CardSectionProps) {
   return (
     <div
       className={`
-        bg-white rounded-lg shadow-sm border border-gray-200
-        ${hover ? 'hover:shadow-md transition-shadow cursor-pointer' : ''}
+        px-[var(--spacing-5)] py-[var(--spacing-4)]
+        border-b border-[var(--color-border)]
         ${className}
       `}
-      onClick={onClick}
+      {...props}
     >
       {children}
     </div>
   );
 }
 
-export function CardHeader({ children, className = '' }: CardHeaderProps) {
+export function CardBody({ children, className = '', ...props }: CardSectionProps) {
   return (
-    <div className={`px-6 py-4 border-b border-gray-200 ${className}`}>
+    <div
+      className={`px-[var(--spacing-5)] py-[var(--spacing-4)] ${className}`}
+      {...props}
+    >
       {children}
     </div>
   );
 }
 
-export function CardBody({ children, className = '' }: CardBodyProps) {
-  return <div className={`px-6 py-4 ${className}`}>{children}</div>;
-}
-
-export function CardFooter({ children, className = '' }: CardFooterProps) {
+export function CardFooter({ children, className = '', ...props }: CardSectionProps) {
   return (
-    <div className={`px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg ${className}`}>
+    <div
+      className={`
+        px-[var(--spacing-5)] py-[var(--spacing-4)]
+        border-t border-[var(--color-border)]
+        bg-[var(--color-bg-secondary)]
+        rounded-b-[var(--radius-lg)]
+        ${className}
+      `}
+      {...props}
+    >
       {children}
     </div>
   );

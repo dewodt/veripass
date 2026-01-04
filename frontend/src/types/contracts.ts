@@ -10,15 +10,17 @@ export interface AssetInfo {
 }
 
 /**
- * Event types enum matching Solidity
+ * Event types matching Solidity
  */
-export enum EventType {
-  MAINTENANCE = 0,
-  VERIFICATION = 1,
-  WARRANTY = 2,
-  CERTIFICATION = 3,
-  CUSTOM = 4,
-}
+export const EventType = {
+  MAINTENANCE: 0,
+  VERIFICATION: 1,
+  WARRANTY: 2,
+  CERTIFICATION: 3,
+  CUSTOM: 4,
+} as const;
+
+export type EventType = (typeof EventType)[keyof typeof EventType];
 
 /**
  * Lifecycle event from EventRegistry contract

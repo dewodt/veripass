@@ -8,36 +8,41 @@ interface BadgeProps {
   variant?: BadgeVariant;
   size?: BadgeSize;
   className?: string;
+  icon?: ReactNode;
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-  default: 'bg-gray-100 text-gray-800',
-  success: 'bg-green-100 text-green-800',
-  warning: 'bg-yellow-100 text-yellow-800',
-  error: 'bg-red-100 text-red-800',
-  info: 'bg-blue-100 text-blue-800',
+  default: 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)]',
+  success: 'bg-[var(--color-accent-green-light)] text-[var(--color-accent-green)]',
+  warning: 'bg-[var(--color-accent-yellow-light)] text-[var(--color-accent-orange)]',
+  error: 'bg-[var(--color-accent-red-light)] text-[var(--color-accent-red)]',
+  info: 'bg-[rgba(35,131,226,0.1)] text-[var(--color-accent-blue)]',
 };
 
 const sizeStyles: Record<BadgeSize, string> = {
-  sm: 'px-2 py-0.5 text-xs',
-  md: 'px-2.5 py-1 text-sm',
+  sm: 'px-[var(--spacing-2)] py-0.5 text-[var(--font-size-xs)]',
+  md: 'px-[var(--spacing-3)] py-[var(--spacing-1)] text-[var(--font-size-sm)]',
 };
 
 export function Badge({
   children,
   variant = 'default',
   size = 'sm',
+  icon,
   className = '',
 }: BadgeProps) {
   return (
     <span
       className={`
-        inline-flex items-center font-medium rounded-full
+        inline-flex items-center gap-1
+        font-medium
+        rounded-[var(--radius-full)]
         ${variantStyles[variant]}
         ${sizeStyles[size]}
         ${className}
       `}
     >
+      {icon && <span className="flex-shrink-0">{icon}</span>}
       {children}
     </span>
   );
