@@ -116,7 +116,17 @@ export function useRecordEvent(chainId: number | undefined) {
   });
 
   const recordEvent = (assetId: bigint, eventType: number, dataHash: `0x${string}`) => {
-    if (!address) return;
+    console.log('🔴 recordEvent called:', {
+      address,
+      chainId,
+      assetId: assetId.toString(),
+      eventType,
+      dataHash,
+    });
+    if (!address) {
+      console.error('❌ No address found for EventRegistry!');
+      return;
+    }
     writeContract({
       address,
       abi: EventRegistryABI,

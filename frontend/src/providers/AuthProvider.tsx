@@ -34,12 +34,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (!isConnected) {
         clearToken();
         if (isMounted) {
-          setState(prev => prev.isAuthenticated ? {
+          setState({
             isAuthenticated: false,
             isLoading: false,
             user: null,
             error: null,
-          } : prev);
+          });
         }
         return;
       }
@@ -47,12 +47,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const token = getToken();
       if (!token || !address) {
         if (isMounted) {
-          setState(prev => prev.isLoading ? {
+          setState({
             isAuthenticated: false,
             isLoading: false,
             user: null,
             error: null,
-          } : prev);
+          });
         }
         return;
       }

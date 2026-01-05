@@ -1,12 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useChainId } from 'wagmi';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Card, CardBody, CardHeader, Button } from '@/components/common';
 import { Skeleton } from '@/components/design-system';
 import { EventCard } from './EventCard';
 import { EventTypeFilter } from './EventTypeFilter';
-import { useAssetEvents, parseLifecycleEvents, useEvidenceByAsset, useIsBackendAvailable } from '@/hooks';
-import { staggerContainer, staggerItem } from '@/lib/animations';
+import { useAssetEvents, useEvidenceByAsset, useIsBackendAvailable } from '@/hooks';
 import type { LifecycleEvent } from '@/types';
 import type { EvidenceResponse } from '@/types/api';
 
@@ -16,7 +15,6 @@ interface EventTimelineProps {
   onRecordClick?: () => void;
 }
 
-// Enriched event with backend evidence data
 interface EnrichedEvent extends LifecycleEvent {
   evidence?: EvidenceResponse;
 }
@@ -32,33 +30,55 @@ export function EventTimeline({ assetId, showRecordButton, onRecordClick }: Even
     isBackendAvailable
   );
 
-  // Parse blockchain events
   const events: LifecycleEvent[] = useMemo(() => {
-    if (!rawEvents) return [];
+    if (!rawEvents || !Array.isArray(rawEvents) || rawEvents.length === 0) return [];
+
     try {
-      const parsed = parseLifecycleEvents(rawEvents as readonly (readonly [bigint, bigint, number, `0x${string}`, bigint, `0x${string}`])[]);
+      const parsed = rawEvents.map((raw: unknown) => {
+        if (Array.isArray(raw)) {
+          return {
+            id: raw[0] as bigint,
+            assetId: raw[1] as bigint,
+            eventType: Number(raw[2]),
+            submitter: raw[3] as `0x${string}`,
+            timestamp: raw[4] as bigint,
+            dataHash: raw[5] as `0x${string}`,
+          };
+        }
+
+        const obj = raw as Record<string, unknown>;
+        return {
+          id: obj.id as bigint,
+          assetId: obj.assetId as bigint,
+          eventType: Number(obj.eventType),
+          submitter: obj.submitter as `0x${string}`,
+          timestamp: obj.timestamp as bigint,
+          dataHash: obj.dataHash as `0x${string}`,
+        };
+      });
+
       return parsed.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
     } catch {
       return [];
     }
   }, [rawEvents]);
 
-  // Enrich events with backend evidence data
-  const enrichedEvents: EnrichedEvent[] = useMemo(() => {
-    if (!events.length) return [];
-
-    const evidenceMap = new Map<string, EvidenceResponse>();
+  const evidenceMap = useMemo(() => {
+    const map = new Map<string, EvidenceResponse>();
     if (evidenceData?.data) {
       evidenceData.data.forEach((ev) => {
-        evidenceMap.set(ev.dataHash.toLowerCase(), ev);
+        map.set(ev.dataHash.toLowerCase(), ev);
       });
     }
+    return map;
+  }, [evidenceData]);
 
+  const enrichedEvents: EnrichedEvent[] = useMemo(() => {
     return events.map((event) => ({
       ...event,
-      evidence: evidenceMap.get(event.dataHash.toLowerCase()),
+      evidence: event.dataHash ? evidenceMap.get(event.dataHash.toLowerCase()) : undefined,
     }));
-  }, [events, evidenceData]);
+  }, [events, evidenceMap]);
 
   const filteredEvents = useMemo(() => {
     if (selectedType === null) return enrichedEvents;
@@ -79,12 +99,9 @@ export function EventTimeline({ assetId, showRecordButton, onRecordClick }: Even
               </span>
             )}
           </h3>
+
           {showRecordButton && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRecordClick}
-            >
+            <Button variant="ghost" size="sm" onClick={onRecordClick}>
               + Record Event
             </Button>
           )}
@@ -92,17 +109,12 @@ export function EventTimeline({ assetId, showRecordButton, onRecordClick }: Even
       </CardHeader>
 
       <CardBody>
-        {/* Filter */}
         {events.length > 0 && (
           <div className="mb-[var(--spacing-4)]">
-            <EventTypeFilter
-              selectedType={selectedType}
-              onSelect={setSelectedType}
-            />
+            <EventTypeFilter selectedType={selectedType} onSelect={setSelectedType} />
           </div>
         )}
 
-        {/* Events */}
         {isLoading ? (
           <div className="space-y-4 py-4">
             {[1, 2, 3].map((i) => (
@@ -117,9 +129,7 @@ export function EventTimeline({ assetId, showRecordButton, onRecordClick }: Even
           </div>
         ) : error ? (
           <div className="text-center py-8">
-            <p className="text-[var(--color-accent-red)]">
-              Failed to load events.
-            </p>
+            <p className="text-[var(--color-accent-red)]">Failed to load events.</p>
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="text-center py-8">
@@ -129,64 +139,38 @@ export function EventTimeline({ assetId, showRecordButton, onRecordClick }: Even
               </svg>
             </div>
             <p className="text-[var(--color-text-muted)]">
-              {events.length === 0
-                ? 'No events recorded for this asset yet.'
-                : 'No events match the selected filter.'}
+              {events.length === 0 ? 'No events recorded for this asset yet.' : 'No events match the selected filter.'}
             </p>
           </div>
         ) : (
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
-            className="mt-[var(--spacing-4)]"
-          >
-            <AnimatePresence>
-              {filteredEvents.map((event, index) => (
-                <motion.div
-                  key={event.id.toString()}
-                  variants={staggerItem}
-                  layout
-                >
-                  <EnrichedEventCard
-                    event={event}
-                    isLast={index === filteredEvents.length - 1}
-                  />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
+          <div className="mt-[var(--spacing-4)] space-y-6">
+            {filteredEvents.map((event) => (
+              <motion.div key={event.dataHash} layout="position">
+                <EnrichedEventCard event={event} />
+              </motion.div>
+            ))}
+          </div>
         )}
       </CardBody>
     </Card>
   );
 }
 
-// Enhanced event card with evidence data
-function EnrichedEventCard({
-  event,
-  isLast,
-}: {
-  event: EnrichedEvent;
-  isLast: boolean;
-}) {
+function EnrichedEventCard({ event }: { event: EnrichedEvent }) {
   const evidence = event.evidence;
 
   return (
-    <div className={`relative pl-8 ${!isLast ? 'pb-6' : ''}`}>
-      {/* Timeline line */}
-      {!isLast && (
-        <div className="absolute left-3 top-8 bottom-0 w-px bg-[var(--color-border)]" />
-      )}
+    <div className="relative pl-8 pb-6">
+      {/* Timeline line (always present; doesn’t depend on “last”, avoids height jumps) */}
+      <div className="absolute left-3 top-8 bottom-0 w-px bg-[var(--color-border)]" />
 
       {/* Timeline dot */}
-      <div className={`
-        absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center
-        ${evidence?.isVerified
-          ? 'bg-[var(--color-accent-green-light)]'
-          : 'bg-[var(--color-bg-tertiary)]'
-        }
-      `}>
+      <div
+        className={`
+          absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center
+          ${evidence?.isVerified ? 'bg-[var(--color-accent-green-light)]' : 'bg-[var(--color-bg-tertiary)]'}
+        `}
+      >
         {evidence?.isVerified ? (
           <svg className="w-3.5 h-3.5 text-[var(--color-accent-green)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -196,10 +180,8 @@ function EnrichedEventCard({
         )}
       </div>
 
-      {/* Event content */}
-      <EventCard event={event} isLast={isLast} />
+      <EventCard event={event} isLast={false} />
 
-      {/* Evidence details */}
       {evidence && (
         <div className="mt-2 ml-0 p-3 bg-[var(--color-bg-secondary)] rounded-[var(--radius-md)]">
           <div className="flex items-center gap-2 mb-2">
@@ -209,16 +191,14 @@ function EnrichedEventCard({
               </span>
             )}
             {evidence.providerName && (
-              <span className="text-[var(--font-size-xs)] text-[var(--color-text-muted)]">
-                by {evidence.providerName}
-              </span>
+              <span className="text-[var(--font-size-xs)] text-[var(--color-text-muted)]">by {evidence.providerName}</span>
             )}
           </div>
+
           {evidence.description && (
-            <p className="text-[var(--font-size-sm)] text-[var(--color-text-secondary)]">
-              {evidence.description}
-            </p>
+            <p className="text-[var(--font-size-sm)] text-[var(--color-text-secondary)]">{evidence.description}</p>
           )}
+
           {evidence.txHash && (
             <p className="text-[var(--font-size-xs)] font-mono text-[var(--color-text-muted)] mt-1">
               Tx: {evidence.txHash.slice(0, 10)}...{evidence.txHash.slice(-8)}

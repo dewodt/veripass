@@ -1,15 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
-import { useChainId } from 'wagmi';
+import { useChainId, useWaitForTransactionReceipt } from 'wagmi';
 import { Modal, Button, Textarea } from '@/components/common';
 import { useRecordEvent } from '@/hooks';
 import { useToast } from '@/hooks/useToast';
-import { hashMetadata, EVENT_TYPE_LABELS } from '@/lib';
+import { api } from '@/lib/api';
+import { EVENT_TYPE_LABELS } from '@/lib';
+import type { EventType, EvidenceResponse } from '@/types/api';
 
 interface RecordEventFormContentProps {
   assetId: bigint;
   onClose: () => void;
   onSuccess?: () => void;
 }
+
+// Map numeric event type to string
+const EVENT_TYPE_MAP: Record<number, EventType> = {
+  0: 'MAINTENANCE',
+  1: 'VERIFICATION',
+  2: 'WARRANTY',
+  3: 'CERTIFICATION',
+  4: 'CUSTOM',
+};
 
 function RecordEventFormContent({ assetId, onClose, onSuccess }: RecordEventFormContentProps) {
   const chainId = useChainId();
@@ -18,27 +29,49 @@ function RecordEventFormContent({ assetId, onClose, onSuccess }: RecordEventForm
   const [eventType, setEventType] = useState<number>(0);
   const [data, setData] = useState('');
   const [error, setError] = useState<string>();
+  const [isCreatingEvidence, setIsCreatingEvidence] = useState(false);
+  const [pendingEvidence, setPendingEvidence] = useState<EvidenceResponse | null>(null);
 
-  const { recordEvent, isPending, isConfirming, isSuccess, error: txError } = useRecordEvent(chainId);
+  const { recordEvent, hash, isPending, isConfirming, isSuccess, error: txError } = useRecordEvent(chainId);
+
+  // Wait for transaction receipt
+  useWaitForTransactionReceipt({
+    hash,
+  });
 
   // Track if we've already handled success/error
   const handledSuccess = useRef(false);
   const handledError = useRef<Error | null>(null);
 
-  // Handle success
+  // Handle blockchain success -> confirm evidence
   useEffect(() => {
-    if (isSuccess && !handledSuccess.current) {
-      handledSuccess.current = true;
-      toast.success('Event recorded successfully!');
-      onSuccess?.();
+    async function confirmEvidence() {
+      if (isSuccess && pendingEvidence && hash && !handledSuccess.current) {
+        handledSuccess.current = true;
+        try {
+          await api.confirmEvidence(pendingEvidence.id, {
+            txHash: hash,
+            // blockchainEventId could be extracted from receipt logs if needed
+          });
+          toast.success('Event recorded successfully!');
+          onSuccess?.();
+        } catch (err) {
+          console.error('Failed to confirm evidence:', err);
+          toast.error('Event recorded on blockchain but failed to confirm in database');
+          onSuccess?.(); // Still call success since blockchain tx worked
+        }
+      }
     }
-  }, [isSuccess, toast, onSuccess]);
+    confirmEvidence();
+  }, [isSuccess, pendingEvidence, hash, toast, onSuccess]);
 
-  // Handle error
+  // Handle blockchain error
   useEffect(() => {
     if (txError && handledError.current !== txError) {
       handledError.current = txError;
-      toast.error(txError.message || 'Failed to record event');
+      toast.error(txError.message || 'Failed to record event on blockchain');
+      // Reset pending evidence so user can retry
+      setPendingEvidence(null);
     }
   }, [txError, toast]);
 
@@ -47,24 +80,54 @@ function RecordEventFormContent({ assetId, onClose, onSuccess }: RecordEventForm
       setError('Event data is required');
       return false;
     }
+    // Try to parse as JSON
+    try {
+      JSON.parse(data);
+    } catch {
+      setError('Please enter valid JSON data');
+      return false;
+    }
     setError(undefined);
     return true;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validate()) return;
 
+    // Reset refs for new submission
+    handledSuccess.current = false;
+    handledError.current = null;
+
     try {
-      const dataHash = hashMetadata(data);
+      setIsCreatingEvidence(true);
+
+      // Parse the JSON data
+      const eventData = JSON.parse(data);
+
+      // Step 1: Create evidence in backend
+      const response = await api.createEvidence({
+        assetId: Number(assetId),
+        eventType: EVENT_TYPE_MAP[eventType],
+        description: eventData.description || undefined,
+        eventData,
+      });
+
+      setPendingEvidence(response.data);
+      const dataHash = response.data.dataHash as `0x${string}`;
+
+      // Step 2: Record on blockchain
       recordEvent(assetId, eventType, dataHash);
-    } catch {
-      toast.error('Failed to process event data');
+    } catch (err) {
+      console.error('Failed to create evidence:', err);
+      toast.error('Failed to save event data');
+    } finally {
+      setIsCreatingEvidence(false);
     }
   };
 
-  const isLoading = isPending || isConfirming;
+  const isLoading = isCreatingEvidence || isPending || isConfirming;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -101,7 +164,7 @@ function RecordEventFormContent({ assetId, onClose, onSuccess }: RecordEventForm
       </div>
 
       <Textarea
-        label="Event Data"
+        label="Event Data (JSON)"
         placeholder={`{
   "description": "Annual maintenance performed",
   "technician": "John Doe",
@@ -111,10 +174,21 @@ function RecordEventFormContent({ assetId, onClose, onSuccess }: RecordEventForm
         value={data}
         onChange={(e) => setData(e.target.value)}
         error={error}
-        helperText="JSON data describing the event (will be hashed on-chain)"
+        helperText="Enter event details as JSON. This data will be stored off-chain and its hash will be recorded on the blockchain."
         rows={6}
         disabled={isLoading}
       />
+
+      {pendingEvidence && (
+        <div className="bg-blue-50 rounded-lg p-3 text-sm">
+          <p className="text-blue-700">
+            ✓ Evidence created (Hash: {pendingEvidence.dataHash.slice(0, 10)}...)
+          </p>
+          <p className="text-blue-600 mt-1">
+            Waiting for blockchain confirmation...
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         <Button
@@ -133,7 +207,13 @@ function RecordEventFormContent({ assetId, onClose, onSuccess }: RecordEventForm
           disabled={isLoading}
           className="flex-1"
         >
-          {isPending ? 'Confirm...' : isConfirming ? 'Recording...' : 'Record Event'}
+          {isCreatingEvidence
+            ? 'Saving...'
+            : isPending
+              ? 'Confirm in wallet...'
+              : isConfirming
+                ? 'Recording...'
+                : 'Record Event'}
         </Button>
       </div>
     </form>

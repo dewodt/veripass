@@ -60,21 +60,18 @@ export interface AssetResponse {
 // Evidence types
 export type EventType = 'MAINTENANCE' | 'VERIFICATION' | 'WARRANTY' | 'CERTIFICATION' | 'CUSTOM';
 
-export interface EvidenceFile {
-  url: string;
-  type: string;
-  name: string;
-}
-
 export interface CreateEvidenceRequest {
   assetId: number;
   eventType: EventType;
-  eventDate: string;
-  providerId?: string;
+  eventDate?: string;
   providerName?: string;
   description?: string;
-  files?: EvidenceFile[];
-  metadata?: Record<string, unknown>;
+  eventData?: Record<string, unknown>;
+}
+
+export interface ConfirmEvidenceRequest {
+  txHash: string;
+  blockchainEventId?: number;
 }
 
 export interface EvidenceResponse {
@@ -83,17 +80,17 @@ export interface EvidenceResponse {
   dataHash: string;
   eventType: string;
   eventDate: string | null;
-  providerId: string | null;
   providerName: string | null;
   description: string | null;
-  files: EvidenceFile[];
-  metadata: Record<string, unknown> | null;
+  eventData: Record<string, unknown> | null;
+  status: string;
   isVerified: boolean;
   verifiedBy: string | null;
   blockchainEventId: number | null;
   txHash: string | null;
   createdBy: string;
   createdAt: string;
+  confirmedAt: string | null;
   verifiedAt: string | null;
 }
 

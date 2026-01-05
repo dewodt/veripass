@@ -7,6 +7,7 @@ import type {
   CreateAssetRequest,
   AssetResponse,
   CreateEvidenceRequest,
+  ConfirmEvidenceRequest,
   EvidenceResponse,
   CreateVerificationRequest,
   VerificationRequestResponse,
@@ -128,6 +129,13 @@ class ApiClient {
   // Evidence endpoints
   async createEvidence(data: CreateEvidenceRequest): Promise<ApiResponse<EvidenceResponse>> {
     return this.request<ApiResponse<EvidenceResponse>>('/api/evidence', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async confirmEvidence(evidenceId: number, data: ConfirmEvidenceRequest): Promise<ApiResponse<EvidenceResponse>> {
+    return this.request<ApiResponse<EvidenceResponse>>(`/api/evidence/${evidenceId}/confirm`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
