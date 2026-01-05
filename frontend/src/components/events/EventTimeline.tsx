@@ -189,7 +189,7 @@ function EnrichedEventCard({ event, isLast }: { event: EnrichedEvent; isLast: bo
   const dotColor = getEventTypeColor(event.eventType);
 
   return (
-    <div className={`relative pl-8 ${evidence ? 'pb-8' : 'pb-6'} last:pb-0`}>
+    <div className={`relative pl-8 ${isLast ? 'pb-0' : 'pb-6'}`}>
       {/* Colored vertical timeline line connecting events */}
       {!isLast && (
         <motion.div
@@ -289,6 +289,16 @@ function EnrichedEventCard({ event, isLast }: { event: EnrichedEvent; isLast: bo
             </div>
           )}
         </motion.div>
+      )}
+
+      {/* Separator line after grey box (if not last event) */}
+      {evidence && !isLast && (
+        <motion.div
+          className="mt-6 mb-6 border-t border-[var(--color-border)] opacity-40"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+        />
       )}
     </div>
   );
