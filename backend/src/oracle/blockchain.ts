@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { config } from "../lib/config";
-import EventRegistryABI from "../../../shared/abi/EventRegistry.json";
+import EventRegistryABI from "../abi/EventRegistry.json";
 
 export const provider = new ethers.JsonRpcProvider(config.blockchain.sepoliaRpcUrl);
 export const oracleWallet = new ethers.Wallet(config.oracle.privateKey!, provider);
