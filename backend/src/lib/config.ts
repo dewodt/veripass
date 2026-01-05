@@ -31,6 +31,7 @@ const configSchema = z.object({
     apiKey: z.string().min(32, "Oracle API key must be at least 32 characters"),
     privateKey: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Oracle private key must be a valid 64-char hex with 0x prefix").optional(),
     pollInterval: z.coerce.number().int().positive().default(30000),
+    backendUrl: z.string().url().optional(),
   }),
 
   // Blockchain configuration
@@ -58,6 +59,7 @@ const parseConfig = () => {
       apiKey: process.env.ORACLE_API_KEY,
       privateKey: process.env.ORACLE_PRIVATE_KEY,
       pollInterval: process.env.POLL_INTERVAL,
+      backendUrl: process.env.BACKEND_URL,
     },
     blockchain: {
       sepoliaRpcUrl: process.env.SEPOLIA_RPC_URL,

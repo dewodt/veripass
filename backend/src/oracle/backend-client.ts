@@ -7,8 +7,12 @@ class BackendClient {
   private client: AxiosInstance;
 
   constructor() {
+    // Use BACKEND_URL from config if provided (for deployed environments),
+    // otherwise fall back to localhost for local development
+    const baseURL = config.oracle.backendUrl || `http://localhost:${config.port}`;
+
     this.client = axios.create({
-      baseURL: `http://localhost:${config.port}`,
+      baseURL,
       headers: {
         "Content-Type": "application/json",
         "X-Oracle-Key": config.oracle.apiKey,
