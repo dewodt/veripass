@@ -1,6 +1,5 @@
 import { db } from "./index";
-import { assets, serviceProviders, serviceRecords } from "./schema";
-import { calculateHash } from "../lib/hash";
+import { serviceProviders, serviceRecords } from "./schema";
 
 async function seed() {
   console.log("🌱 Seeding database...");
@@ -47,8 +46,8 @@ async function seed() {
 
   // Seed example service record
   await db.insert(serviceRecords).values({
-    recordId: "SVC-2024-001",
-    assetId: 1,
+    recordId: "SVC-2024-002",
+    assetId: 4,
     providerId: "rolex-service-jakarta",
     serviceType: "ROUTINE_MAINTENANCE",
     serviceDate: "2024-12-01",
