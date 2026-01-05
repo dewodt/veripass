@@ -16,7 +16,7 @@ export default defineConfig({
     port: 4173,
     allowedHosts: [
       'frontend-production-e502.up.railway.app',
-      '.railway.app', // Allow all Railway subdomains
+      '.railway.app',
     ],
   },
 })
