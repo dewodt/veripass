@@ -1,7 +1,8 @@
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useMemo } from 'react';
+import { useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import type { Address } from 'viem';
 import { AssetPassportABI, getContractAddresses } from '@/config/contracts';
-import type { AssetInfo } from '@/types';
+import type { AssetInfo, Passport } from '@/types';
 
 /**
  * Get contract address for current chain
@@ -97,6 +98,82 @@ export function useNextTokenId(chainId: number | undefined) {
       enabled: !!address,
     },
   });
+}
+
+/**
+ * Fetch all passports using batched contract reads
+ */
+export function useAllPassports(chainId: number | undefined) {
+  const address = useAssetPassportAddress(chainId);
+  const { data: nextTokenId, isLoading: isLoadingCount } = useNextTokenId(chainId);
+
+  // Generate contract read configs for all tokens
+  const tokenIdValue = nextTokenId as bigint | undefined;
+  const count = tokenIdValue && tokenIdValue > 1n ? Number(tokenIdValue) - 1 : 0;
+
+  const contracts = useMemo(() => {
+    if (!address || count === 0) return [];
+
+    const configs = [];
+    for (let i = 1; i <= count; i++) {
+      // getAssetInfo call
+      configs.push({
+        address,
+        abi: AssetPassportABI,
+        functionName: 'getAssetInfo',
+        args: [BigInt(i)],
+      });
+      // ownerOf call
+      configs.push({
+        address,
+        abi: AssetPassportABI,
+        functionName: 'ownerOf',
+        args: [BigInt(i)],
+      });
+    }
+    return configs;
+  }, [address, count]);
+
+  const { data, isLoading } = useReadContracts({
+    contracts,
+    query: { enabled: contracts.length > 0 },
+  });
+
+  // Transform results into Passport array
+  const passports = useMemo((): Passport[] => {
+    if (!data || count === 0) return [];
+
+    const result: Passport[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const assetInfoResult = data[i * 2];
+      const ownerResult = data[i * 2 + 1];
+
+      if (
+        assetInfoResult?.status === 'success' &&
+        ownerResult?.status === 'success'
+      ) {
+        const assetInfo = assetInfoResult.result as AssetInfo;
+        const owner = ownerResult.result as Address;
+
+        result.push({
+          tokenId: BigInt(i + 1),
+          owner,
+          metadataHash: assetInfo.metadataHash,
+          mintTimestamp: assetInfo.mintTimestamp,
+          isActive: assetInfo.isActive,
+        });
+      }
+    }
+
+    return result;
+  }, [data, count]);
+
+  return {
+    passports,
+    nextTokenId: nextTokenId as bigint | undefined,
+    isLoading: isLoadingCount || isLoading,
+  };
 }
 
 /**

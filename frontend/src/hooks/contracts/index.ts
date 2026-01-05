@@ -4,6 +4,7 @@ export {
   useUserBalance,
   useIsMinter,
   useNextTokenId,
+  useAllPassports,
   useIsPaused,
   useMintPassport,
   useTransferPassport,

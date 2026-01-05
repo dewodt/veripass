@@ -1,11 +1,12 @@
-import type { Address } from 'viem'
+import type { Address, Abi } from 'viem'
 import { sepolia, hardhat } from 'wagmi/chains'
 
 // Import ABIs from local abi folder
-import AssetPassportABI from '@/abi/AssetPassport.json'
-import EventRegistryABI from '@/abi/EventRegistry.json'
+import AssetPassportABIJson from '@/abi/AssetPassport.json'
+import EventRegistryABIJson from '@/abi/EventRegistry.json'
 
-export { AssetPassportABI, EventRegistryABI }
+export const AssetPassportABI = AssetPassportABIJson as Abi
+export const EventRegistryABI = EventRegistryABIJson as Abi
 
 // Get contract addresses from environment variables
 const ASSET_PASSPORT_ADDRESS = import.meta.env.VITE_ASSET_PASSPORT_ADDRESS as Address
