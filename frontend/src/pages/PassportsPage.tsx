@@ -13,36 +13,26 @@ export function PassportsPage() {
   // Get total supply to know how many passports exist
   const { data: nextTokenId, isLoading: isLoadingCount } = useNextTokenId(chainId);
 
-  // For demo: fetch first 10 passports (in production, use indexer/subgraph)
+  // Generate token IDs based on total supply
   const tokenIds = useMemo(() => {
     const tokenIdValue = nextTokenId as bigint | undefined;
     if (!tokenIdValue || tokenIdValue <= 1n) return [];
     const count = Number(tokenIdValue) - 1;
-    const maxDisplay = Math.min(count, 10);
-    return Array.from({ length: maxDisplay }, (_, i) => BigInt(i + 1));
+    return Array.from({ length: count }, (_, i) => BigInt(i + 1));
   }, [nextTokenId]);
 
-  // Fetch passport data for each token
-  const passport1 = usePassport(tokenIds[0], chainId);
-  const passport2 = usePassport(tokenIds[1], chainId);
-  const passport3 = usePassport(tokenIds[2], chainId);
-  const passport4 = usePassport(tokenIds[3], chainId);
-  const passport5 = usePassport(tokenIds[4], chainId);
+  // Fetch passport data for each token ID
+  const passportQueries = tokenIds.map(tokenId => usePassport(tokenId, chainId));
 
+  // Combine results
   const passports = useMemo(() => {
-    const results: Passport[] = [];
-    [passport1, passport2, passport3, passport4, passport5].forEach((p) => {
-      if (p.passport) results.push(p.passport);
-    });
-    return results;
-  }, [passport1, passport2, passport3, passport4, passport5]);
+    return passportQueries
+      .map(query => query.passport)
+      .filter((passport): passport is Passport => passport !== undefined);
+  }, [passportQueries]);
 
-  const isLoading = isLoadingCount ||
-    passport1.isLoading ||
-    passport2.isLoading ||
-    passport3.isLoading ||
-    passport4.isLoading ||
-    passport5.isLoading;
+  // Check if any are still loading
+  const isLoading = isLoadingCount || passportQueries.some(query => query.isLoading);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
