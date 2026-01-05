@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { isAddress } from 'viem';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Card, CardBody, CardHeader, Button, Input, Textarea } from '@/components/common';
 import { useMintPassport, useIsMinter, useNextTokenId, useCreateAsset, useUpdateMintStatus, useIsBackendAvailable } from '@/hooks';
 import { useAuth } from '@/providers';
 import { useToast } from '@/hooks/useToast';
 import { hashMetadata } from '@/lib';
-import { fadeVariants } from '@/lib/animations';
 
 interface MintPassportFormProps {
   onSuccess?: (tokenId: string) => void;
@@ -46,8 +45,6 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
     description: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
-  const [useLegacyMode, setUseLegacyMode] = useState(false);
-  const [legacyMetadata, setLegacyMetadata] = useState('');
 
   const { data: isMinter } = useIsMinter(address, chainId);
   const { data: nextTokenId } = useNextTokenId(chainId);
@@ -82,7 +79,6 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
       manufacturedDate: '',
       description: '',
     });
-    setLegacyMetadata('');
   }, [address]);
 
   // Handle minting success
@@ -93,7 +89,7 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
       onSuccess?.(hash);
 
       // Update mint status in backend
-      if (pendingAssetId.current && isBackendAvailable && !useLegacyMode) {
+      if (pendingAssetId.current && isBackendAvailable) {
         updateMintStatus({
           assetId: pendingAssetId.current,
           data: { status: 'MINTED', txHash: hash },
@@ -106,7 +102,7 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       resetForm();
     }
-  }, [isSuccess, hash, toast, onSuccess, resetForm, updateMintStatus, isBackendAvailable, useLegacyMode]);
+  }, [isSuccess, hash, toast, onSuccess, resetForm, updateMintStatus, isBackendAvailable]);
 
   // Handle minting error
   useEffect(() => {
@@ -115,7 +111,7 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
       toast.error(mintError.message || 'Failed to mint passport');
 
       // Update mint status to FAILED in backend
-      if (pendingAssetId.current && isBackendAvailable && !useLegacyMode) {
+      if (pendingAssetId.current && isBackendAvailable) {
         updateMintStatus({
           assetId: pendingAssetId.current,
           data: { status: 'FAILED' },
@@ -125,7 +121,7 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
         pendingAssetId.current = null;
       }
     }
-  }, [mintError, toast, updateMintStatus, isBackendAvailable, useLegacyMode]);
+  }, [mintError, toast, updateMintStatus, isBackendAvailable]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -136,19 +132,17 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
       newErrors.recipient = 'Invalid Ethereum address';
     }
 
-    if (!useLegacyMode) {
-      if (!formData.manufacturer.trim()) {
-        newErrors.manufacturer = 'Manufacturer is required';
-      }
-      if (!formData.model.trim()) {
-        newErrors.model = 'Model is required';
-      }
-      if (!formData.serialNumber.trim()) {
-        newErrors.serialNumber = 'Serial number is required';
-      }
-      if (!formData.manufacturedDate) {
-        newErrors.manufacturedDate = 'Manufactured date is required';
-      }
+    if (!formData.manufacturer.trim()) {
+      newErrors.manufacturer = 'Manufacturer is required';
+    }
+    if (!formData.model.trim()) {
+      newErrors.model = 'Model is required';
+    }
+    if (!formData.serialNumber.trim()) {
+      newErrors.serialNumber = 'Serial number is required';
+    }
+    if (!formData.manufacturedDate) {
+      newErrors.manufacturedDate = 'Manufactured date is required';
     }
 
     setErrors(newErrors);
@@ -160,36 +154,24 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
 
     if (!validateForm()) return;
 
-    // Legacy mode: hash locally and mint directly
-    if (useLegacyMode || !isBackendAvailable) {
+    // Offline mode: hash locally and mint directly
+    if (!isBackendAvailable) {
       if (!nextTokenId) {
         toast.error('Unable to get next token ID');
         return;
       }
 
-      try {
-        let metadataHash: `0x${string}`;
-        if (useLegacyMode && legacyMetadata) {
-          // For legacy JSON mode, parse and add assetId
-          const parsed = JSON.parse(legacyMetadata);
-          const withAssetId = { assetId: Number(nextTokenId), ...parsed };
-          metadataHash = hashMetadata(withAssetId);
-        } else {
-          // Include assetId in hash for uniqueness even with identical metadata
-          const metadata = {
-            assetId: Number(nextTokenId),
-            manufacturer: formData.manufacturer,
-            model: formData.model,
-            serialNumber: formData.serialNumber,
-            manufacturedDate: formData.manufacturedDate,
-            description: formData.description,
-          };
-          metadataHash = hashMetadata(metadata);
-        }
-        mint(formData.recipient as `0x${string}`, metadataHash);
-      } catch {
-        toast.error('Invalid metadata format');
-      }
+      // Include assetId in hash for uniqueness even with identical metadata
+      const metadata = {
+        assetId: Number(nextTokenId),
+        manufacturer: formData.manufacturer,
+        model: formData.model,
+        serialNumber: formData.serialNumber,
+        manufacturedDate: formData.manufacturedDate,
+        description: formData.description,
+      };
+      const metadataHash = hashMetadata(metadata);
+      mint(formData.recipient as `0x${string}`, metadataHash);
       return;
     }
 
@@ -289,7 +271,7 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
       </CardHeader>
       <CardBody>
         {/* Backend authentication prompt */}
-        {isBackendAvailable && !isAuthenticated && !useLegacyMode && (
+        {isBackendAvailable && !isAuthenticated && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -310,21 +292,6 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
           </motion.div>
         )}
 
-        {/* Mode toggle (only when backend is available) */}
-        {isBackendAvailable && (
-          <div className="mb-4">
-            <label className="flex items-center gap-2 text-[var(--font-size-sm)] text-[var(--color-text-secondary)] cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useLegacyMode}
-                onChange={(e) => setUseLegacyMode(e.target.checked)}
-                className="rounded"
-              />
-              Use legacy mode (JSON input, no backend verification)
-            </label>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Recipient Address"
@@ -336,81 +303,60 @@ export function MintPassportForm({ onSuccess }: MintPassportFormProps) {
             disabled={isLoading}
           />
 
-          <AnimatePresence mode="wait">
-            {useLegacyMode ? (
-              <motion.div key="legacy" {...fadeVariants}>
-                <Textarea
-                  label="Metadata (JSON)"
-                  placeholder={`{
-  "name": "Asset Name",
-  "manufacturer": "Manufacturer",
-  "model": "Model Number",
-  "serialNumber": "SN-123456"
-}`}
-                  value={legacyMetadata}
-                  onChange={(e) => setLegacyMetadata(e.target.value)}
-                  helperText="JSON metadata that will be hashed and stored on-chain"
-                  rows={6}
-                  disabled={isLoading}
-                />
-              </motion.div>
-            ) : (
-              <motion.div key="structured" {...fadeVariants} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input
-                    label="Manufacturer"
-                    placeholder="e.g., Apple, Sony, Toyota"
-                    value={formData.manufacturer}
-                    onChange={(e) => setFormData(prev => ({ ...prev, manufacturer: e.target.value }))}
-                    error={errors.manufacturer}
-                    disabled={isLoading}
-                  />
-                  <Input
-                    label="Model"
-                    placeholder="e.g., iPhone 15 Pro, PlayStation 5"
-                    value={formData.model}
-                    onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
-                    error={errors.model}
-                    disabled={isLoading}
-                  />
-                </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Manufacturer"
+                placeholder="e.g., Apple, Sony, Toyota"
+                value={formData.manufacturer}
+                onChange={(e) => setFormData(prev => ({ ...prev, manufacturer: e.target.value }))}
+                error={errors.manufacturer}
+                disabled={isLoading}
+              />
+              <Input
+                label="Model"
+                placeholder="e.g., iPhone 15 Pro, PlayStation 5"
+                value={formData.model}
+                onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
+                error={errors.model}
+                disabled={isLoading}
+              />
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input
-                    label="Serial Number"
-                    placeholder="e.g., SN-123456789"
-                    value={formData.serialNumber}
-                    onChange={(e) => setFormData(prev => ({ ...prev, serialNumber: e.target.value }))}
-                    error={errors.serialNumber}
-                    disabled={isLoading}
-                  />
-                  <Input
-                    label="Manufactured Date"
-                    type="date"
-                    value={formData.manufacturedDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, manufacturedDate: e.target.value }))}
-                    error={errors.manufacturedDate}
-                    disabled={isLoading}
-                  />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Serial Number"
+                placeholder="e.g., SN-123456789"
+                value={formData.serialNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, serialNumber: e.target.value }))}
+                error={errors.serialNumber}
+                disabled={isLoading}
+              />
+              <Input
+                label="Manufactured Date"
+                type="date"
+                value={formData.manufacturedDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, manufacturedDate: e.target.value }))}
+                error={errors.manufacturedDate}
+                disabled={isLoading}
+              />
+            </div>
 
-                <Textarea
-                  label="Description (Optional)"
-                  placeholder="Enter a brief description of the asset..."
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                  disabled={isLoading}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+            <Textarea
+              label="Description (Optional)"
+              placeholder="Enter a brief description of the asset..."
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              rows={3}
+              disabled={isLoading}
+            />
+          </div>
 
           <Button
             type="submit"
             fullWidth
             loading={isLoading}
-            disabled={isLoading || (!useLegacyMode && isBackendAvailable && !isAuthenticated)}
+            disabled={isLoading || (isBackendAvailable && !isAuthenticated)}
           >
             {isMinting ? 'Confirm in Wallet...' : isConfirming ? 'Minting...' : isCreatingAsset ? 'Creating Asset...' : 'Mint Passport'}
           </Button>
