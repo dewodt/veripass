@@ -28,6 +28,7 @@ export function useAssetEvents(assetId: bigint | undefined, chainId: number | un
     args: assetId !== undefined ? [assetId] : undefined,
     query: {
       enabled: !!address && assetId !== undefined,
+      refetchInterval: 15_000, // Poll every 15 seconds for real-time updates
     },
   });
 }

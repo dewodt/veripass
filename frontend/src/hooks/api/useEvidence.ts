@@ -15,7 +15,8 @@ export function useEvidenceByAsset(assetId: number | undefined, enabled: boolean
     queryKey: evidenceKeys.byAsset(assetId!),
     queryFn: () => api.getEvidenceByAsset(assetId!),
     enabled: enabled && assetId !== undefined,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 15 * 1000, // 15 seconds
+    refetchInterval: 15_000, // Poll every 15 seconds for real-time updates
   });
 }
 
@@ -25,7 +26,8 @@ export function useEvidenceByHash(hash: string | undefined, enabled: boolean = t
     queryKey: evidenceKeys.byHash(hash!),
     queryFn: () => api.getEvidenceByHash(hash!),
     enabled: enabled && !!hash,
-    staleTime: 30 * 1000,
+    staleTime: 15 * 1000, // 15 seconds
+    refetchInterval: 15_000, // Poll every 15 seconds for real-time updates
   });
 }
 

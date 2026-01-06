@@ -2,8 +2,8 @@ import { ethers } from "hardhat";
 
 async function main() {
     // 🔧 CHANGE THIS
-    const EVENT_REGISTRY_ADDRESS = "0x0165878A594ca255338adfa4d48449f69242Eb8F";
-    const ASSET_ID = 3;
+    const EVENT_REGISTRY_ADDRESS = process.env.EVENT_REGISTRY_ADDRESS || "";
+    const ASSET_ID = 1;
 
     const [signer] = await ethers.getSigners();
     const provider = signer.provider!;
@@ -65,7 +65,35 @@ async function main() {
     const isTrusted = await registry.isTrustedOracle(signer.address);
     console.log("Signer is trusted oracle:", isTrusted);
 
-    console.log("✅ Debug completed");
+    // 5️⃣ Query all events for this asset
+    console.log("----------------------------------");
+    console.log(`Fetching events for assetId = ${ASSET_ID}...`);
+    try {
+        const events = await registry.getEventsByAsset(ASSET_ID);
+        console.log(`✅ Found ${events.length} events on-chain:`);
+        events.forEach((event: any, idx: number) => {
+            console.log(`\n  Event #${idx + 1}:`);
+            console.log(`    ID: ${event.id}`);
+            console.log(`    AssetId: ${event.assetId}`);
+            console.log(`    EventType: ${event.eventType}`);
+            console.log(`    Submitter: ${event.submitter}`);
+            console.log(`    Timestamp: ${event.timestamp} (${new Date(Number(event.timestamp) * 1000).toISOString()})`);
+            console.log(`    DataHash: ${event.dataHash}`);
+        });
+    } catch (err: any) {
+        console.error("❌ getEventsByAsset failed:", err.message);
+    }
+
+    // 6️⃣ Get total event count
+    console.log("----------------------------------");
+    try {
+        const totalCount = await registry.getEventCount(ASSET_ID);
+        console.log(`Total event count for asset ${ASSET_ID}: ${totalCount}`);
+    } catch (err: any) {
+        console.error("❌ getEventCount failed:", err.message);
+    }
+
+    console.log("\n✅ Debug completed");
 }
 
 main().catch((error) => {
