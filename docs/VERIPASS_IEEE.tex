@@ -462,6 +462,27 @@ Batasan sistem saat ini mencakup: (1) ketergantungan pada ketersediaan backend u
 
 Sistem mengimplementasikan graceful degradation untuk menangani ketidaktersediaan backend. Dalam mode offline, user masih dapat melihat data on-chain (hash passport) dan melakukan operasi blockchain langsung, namun metadata detail tidak tersedia untuk ditampilkan.
 
+\section{Deployment dan Sistem Live}
+VeriPass telah di-deploy ke production environment dan siap digunakan dengan wallet asli di jaringan Ethereum Sepolia testnet. Sistem ini dapat diakses dan diuji secara langsung melalui antarmuka web yang telah tersedia.
+
+\textbf{Akses Frontend:} \url{https://frontend-production-e502.up.railway.app}
+
+Pengguna dapat mengakses sistem melalui URL production di atas menggunakan Web3 wallet seperti MetaMask. Fitur yang tersedia mencakup: (1) koneksi wallet, (2) minting asset passport baru, (3) melihat daftar passport yang telah di-mint, (4) verifikasi integritas data, dan (5) pencatatan custom event.
+
+\textbf{Repository Code:} \url{https://github.com/IrfanMusthofa/veripass}
+
+Kode sumber VeriPass tersedia di repository GitHub untuk keperluan review, audit, dan pengembangan lebih lanjut. Repository mencakup: (1) smart contract Solidity di folder \texttt{contracts/}, (2) backend API Hono.js di folder \texttt{backend/}, (3) frontend React di folder \texttt{frontend/}, dan (4) dokumentasi lengkap.
+
+\textbf{Network Configuration:}
+\begin{itemize}
+    \item \textbf{Blockchain:} Ethereum Sepolia Testnet
+    \item \textbf{Frontend:} React application on Railway platform
+    \item \textbf{Backend:} Hono.js API server with PostgreSQL database
+    \item \textbf{Oracle:} Custom polling-based oracle worker
+\end{itemize}
+
+Dengan sistem yang sudah live ini, peneliti dan developer dapat secara langsung mengeksplorasi fungsionalitas VeriPass, melakukan pengujian integrasi, dan mengverifikasi klaim-klaim teknis yang telah didiskusikan dalam paper ini. Pendekatan ini memberikan transparansi penuh dan memungkinkan community untuk melakukan independent verification terhadap implementasi dan keamanan sistem.
+
 \section{Kesimpulan}
 Penelitian ini berhasil mengembangkan VeriPass sebagai sistem paspor aset terdesentralisasi berbasis blockchain yang menyediakan single source of truth untuk verifikasi dan pelacakan siklus hidup aset fisik. Kontribusi utama mencakup: (1) arsitektur hybrid yang mengintegrasikan smart contract ERC-721 dengan backend tradisional, (2) mekanisme oracle untuk verifikasi data dari penyedia layanan terpercaya, dan (3) protokol hashing deterministik untuk jaminan integritas data.
 
