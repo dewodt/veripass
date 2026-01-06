@@ -23,7 +23,7 @@ The VeriPass Backend serves as the off-chain data layer for the VeriPass system,
 - Stores detailed asset metadata (manufacturer, model, serial number, images)
 - Manages event evidence data (maintenance records, inspections, certifications)
 - Provides Web3 wallet-based authentication (MetaMask)
-- Manages verification request queue for the oracle
+- Accepts service records from external providers (Provider API)
 - Stores dummy service provider and service record data
 - Calculates deterministic hashes for blockchain verification
 
@@ -364,77 +364,79 @@ GET /api/evidence/asset/1
 
 ---
 
-### Verification Request Endpoints
+### Provider API Endpoints
 
-#### 1. Create Verification Request
+External service providers use these endpoints to submit service records. Requires `X-Provider-Key` header.
+
+#### 1. Create Service Record
 ```http
-POST /api/verification-requests
+POST /api/provider/service-records
+X-Provider-Key: your-provider-api-key
 Content-Type: application/json
 
 {
   "assetId": 1,
-  "requestType": "SERVICE_VERIFICATION",
-  "providerId": "rolex-service-jakarta",
-  "requestedBy": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+  "eventType": "MAINTENANCE",
+  "eventName": "Annual Service",
+  "serviceDate": "2024-12-01",
+  "technicianName": "John Doe",
+  "technicianNotes": "Watch in excellent condition",
+  "workPerformed": ["Movement cleaning", "Water resistance test"],
+  "partsReplaced": [
+    { "name": "Gasket", "partNumber": "GSK-001", "quantity": 1 }
+  ]
 }
 ```
 
 **Response:**
 ```json
 {
-  "id": 1,
-  "requestId": "VR-1735905600000-abc123",
+  "recordId": "SR-1735905600000-abc123",
   "assetId": 1,
-  "requestType": "SERVICE_VERIFICATION",
-  "providerId": "rolex-service-jakarta",
-  "requestedBy": "0x742d35cc6634c0532925a3b844bc9e7595f0beb",
-  "status": "PENDING",
-  "blockchainEventId": null,
-  "txHash": null,
-  "dataHash": null,
-  "evidenceId": null,
-  "errorMessage": null,
-  "createdAt": "2026-01-03T12:00:00.000Z",
-  "processedAt": null
+  "eventType": "MAINTENANCE",
+  "eventName": "Annual Service",
+  "verified": true,
+  "createdAt": "2026-01-03T12:00:00.000Z"
 }
 ```
 
-**Request Types**: `SERVICE_VERIFICATION`, `AUTHENTICITY_CHECK`
+**Event Types**: `MAINTENANCE`, `VERIFICATION`, `WARRANTY`, `CERTIFICATION`
 
-**Purpose**: Queue a verification request for the oracle to process.
+**Purpose**: Submit a service record. Oracle automatically picks up and processes verified records.
 
-#### 2. Get Pending Verification Requests (Oracle Only)
+#### 2. Get Service Record by ID
 ```http
-GET /api/verification-requests/pending
-X-Oracle-Key: your-oracle-api-key
+GET /api/provider/service-records/SR-1735905600000-abc123
+X-Provider-Key: your-provider-api-key
 ```
 
-**Response**: Array of verification request objects with status `PENDING`
-
-**Purpose**: Oracle polls this endpoint to find work.
-
-#### 3. Update Verification Request (Oracle Only)
-```http
-PATCH /api/verification-requests/VR-1735905600000-abc123
-X-Oracle-Key: your-oracle-api-key
-Content-Type: application/json
-
+**Response:**
+```json
 {
-  "status": "COMPLETED",
+  "recordId": "SR-1735905600000-abc123",
+  "assetId": 1,
+  "eventType": "MAINTENANCE",
+  "verified": true,
+  "processingStatus": "COMPLETED",
+  "evidenceId": 5,
   "blockchainEventId": 123,
-  "txHash": "0x1234abcd...",
-  "dataHash": "0xabcd1234...",
-  "evidenceId": 5
+  "txHash": "0x1234abcd..."
 }
 ```
 
-**Statuses**: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`
+**Processing Statuses**: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`
 
-**Purpose**: Oracle updates request status after processing.
+#### 3. Get Service Records by Asset
+```http
+GET /api/provider/service-records/asset/1
+X-Provider-Key: your-provider-api-key
+```
+
+**Response**: Array of service record objects for the asset
 
 ---
 
-### Service Record Endpoints
+### Public Service Record Endpoints
 
 #### 1. Get Service Records by Asset ID
 ```http
@@ -490,14 +492,14 @@ backend/
 │   │   ├── auth.route.ts      # Auth endpoints
 │   │   ├── asset.route.ts     # Asset endpoints
 │   │   ├── evidence.route.ts  # Evidence endpoints
-│   │   ├── verification.route.ts # Verification endpoints
-│   │   └── service-record.route.ts # Service record endpoints
+│   │   ├── provider.route.ts  # Provider API endpoints
+│   │   └── service-record.route.ts # Public service record endpoints
 │   ├── services/
 │   │   ├── auth.service.ts    # Auth business logic
 │   │   ├── asset.service.ts   # Asset CRUD
 │   │   ├── evidence.service.ts # Evidence CRUD
-│   │   ├── verification.service.ts # Verification logic
-│   │   └── service-record.service.ts # Service record retrieval
+│   │   ├── provider.service.ts # Provider service record management
+│   │   └── service-record.service.ts # Public service record retrieval
 │   ├── types/
 │   │   └── index.ts           # TypeScript type definitions
 │   └── index.ts               # Application entry point
@@ -521,9 +523,9 @@ backend/
 - Used for data integrity verification
 
 ### 3. Oracle Integration
-- Queue-based verification request system
-- Oracle authenticates using API key
-- Automatic status tracking (PENDING → PROCESSING → COMPLETED/FAILED)
+- Oracle polls `service_records_provider_a` for unprocessed records
+- Processes provider-submitted records automatically
+- Status tracking via `processed_service_records` table (PENDING → PROCESSING → COMPLETED/FAILED)
 
 ### 4. Type-Safe Validation
 - Zod schemas for all API inputs
@@ -539,8 +541,8 @@ backend/
 - **assets**: Asset metadata storage
 - **evidence**: Event evidence data
 - **service_providers**: Trusted provider registry
-- **service_records**: Dummy service data for oracle
-- **verification_requests**: Oracle work queue
+- **service_records_provider_a**: Provider-submitted service records
+- **processed_service_records**: Oracle processing queue and status
 - **auth_nonces**: Web3 auth nonces
 
 ---

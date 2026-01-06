@@ -86,10 +86,10 @@ bun run preview  # Preview production build
    - Retrieves full metadata from backend
    - Compares hashes to verify integrity
 
-3. **Oracle Verification**
-   - Users request verification through backend
-   - Oracle processes and submits to blockchain
-   - Status displayed in event timeline
+3. **Service Provider Events**
+   - External providers submit service records via Provider API
+   - Oracle auto-processes and records on blockchain (verified)
+   - Users can submit custom events directly (unverified)
 
 ### Directory Structure
 
@@ -253,8 +253,8 @@ Uses Web3 wallet signature for authentication:
 
 - `POST /api/assets` - Create asset metadata
 - `GET /api/assets/by-hash/:hash` - Get asset by hash
-- `POST /api/evidence` - Create evidence record
-- `POST /api/verification-requests` - Request oracle verification
+- `POST /api/evidence` - Create evidence record (custom events)
+- `GET /api/service-records/:assetId` - Get service records for asset
 
 ## Scripts
 

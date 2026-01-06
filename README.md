@@ -89,36 +89,61 @@ User                    Frontend                 Backend                  Blockc
   │<───────────────────────│                        │                        │
 ```
 
-### 3. Oracle Verification
+### 3. Service Provider Events
 
 ```
-User                    Frontend                 Backend                   Oracle                  Blockchain
-  │                        │                        │                        │                        │
-  │  Request verification  │                        │                        │                        │
-  │───────────────────────>│                        │                        │                        │
-  │                        │  POST /api/verification-requests               │                        │
-  │                        │───────────────────────>│                        │                        │
-  │                        │     { requestId }      │  Queue request         │                        │
-  │                        │<───────────────────────│                        │                        │
-  │   Pending status       │                        │                        │                        │
-  │<───────────────────────│                        │                        │                        │
-  │                        │                        │                        │                        │
-  │                        │                        │  Poll pending requests │                        │
-  │                        │                        │<───────────────────────│                        │
-  │                        │                        │                        │                        │
-  │                        │                        │                        │  Process & verify      │
-  │                        │                        │                        │                        │
-  │                        │                        │                        │  submitEvent(assetId,  │
-  │                        │                        │                        │  eventType, dataHash)  │
-  │                        │                        │                        │───────────────────────>│
-  │                        │                        │                        │      { txHash }        │
-  │                        │                        │                        │<───────────────────────│
-  │                        │                        │                        │                        │
-  │                        │                        │  Update status         │                        │
-  │                        │                        │<───────────────────────│                        │
-  │                        │                        │                        │                        │
-  │  View verified event in timeline               │                        │                        │
-  │<───────────────────────────────────────────────────────────────────────────────────────────────────│
+Provider                   Backend                   Oracle                  Blockchain
+  │                           │                        │                        │
+  │  POST /api/provider/      │                        │                        │
+  │  service-records          │                        │                        │
+  │  (with API key)           │                        │                        │
+  │──────────────────────────>│                        │                        │
+  │                           │  Store record          │                        │
+  │     { recordId }          │  (verified: true)      │                        │
+  │<──────────────────────────│                        │                        │
+  │                           │                        │                        │
+  │                           │  Poll unprocessed      │                        │
+  │                           │  records (every 15s)   │                        │
+  │                           │<───────────────────────│                        │
+  │                           │                        │                        │
+  │                           │                        │  Calculate hash        │
+  │                           │                        │  Sign with wallet      │
+  │                           │                        │                        │
+  │                           │                        │  recordVerifiedEvent() │
+  │                           │                        │───────────────────────>│
+  │                           │                        │      { txHash }        │
+  │                           │                        │<───────────────────────│
+  │                           │                        │                        │
+  │                           │  Create evidence       │                        │
+  │                           │  (CONFIRMED, verified) │                        │
+  │                           │<───────────────────────│                        │
+  │                           │                        │                        │
+  │  GET /api/provider/       │                        │                        │
+  │  service-records/:id      │                        │                        │
+  │──────────────────────────>│                        │                        │
+  │   { status: COMPLETED,    │                        │                        │
+  │     txHash, eventId }     │                        │                        │
+  │<──────────────────────────│                        │                        │
+```
+
+### 4. User Custom Events
+
+Users can record their own custom events directly to the blockchain (unverified):
+
+```
+User                    Frontend                                           Blockchain
+  │                        │                                                   │
+  │  Fill event form       │                                                   │
+  │───────────────────────>│                                                   │
+  │                        │  Calculate hash locally                           │
+  │                        │                                                   │
+  │                        │  recordEvent(assetId, CUSTOM, dataHash)           │
+  │                        │──────────────────────────────────────────────────>│
+  │                        │                             { eventId, txHash }   │
+  │                        │<──────────────────────────────────────────────────│
+  │   Event recorded       │                                                   │
+  │   (unverified)         │                                                   │
+  │<───────────────────────│                                                   │
 ```
 
 ## Folder Structure
@@ -349,12 +374,13 @@ Immutable ledger for asset lifecycle events.
 | POST | `/api/evidence` | Create evidence record |
 | GET | `/api/evidence/asset/:assetId` | Get evidence for asset |
 
-### Verification
+### Provider API (External Service Providers)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/verification-requests` | Request oracle verification |
-| GET | `/api/verification-requests/:id` | Get request status |
+| POST | `/api/provider/service-records` | Submit service record (requires API key) |
+| GET | `/api/provider/service-records/:recordId` | Get record with processing status |
+| GET | `/api/provider/service-records/asset/:assetId` | Get all records for asset |
 
 ## Graceful Degradation
 
@@ -425,13 +451,13 @@ FORBIDDEN:
 5. Confirm transaction -> Contract mints NFT
 6. View passport with verification badge
 
-### Verification Request Flow
-1. Navigate to owned passport
-2. Click "Request Verification"
-3. Select verification type
-4. Submit request
-5. Oracle processes and submits to blockchain
-6. View verified event in timeline
+### Service Provider Event Flow
+1. Service provider submits record via `POST /api/provider/service-records`
+2. Backend stores record with `verified: true`
+3. Oracle polls and picks up unprocessed record
+4. Oracle calculates hash, signs, and submits to blockchain
+5. Evidence created with `isVerified: true`
+6. Provider queries status via `GET /api/provider/service-records/:recordId`
 
 ### Degraded Mode Testing
 1. Stop backend server

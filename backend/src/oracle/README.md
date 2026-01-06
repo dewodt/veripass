@@ -1,6 +1,6 @@
 # VeriPass Oracle Worker
 
-Background service that processes service records and submits verified events to the blockchain.
+Background service that processes provider-submitted service records and submits verified events to the blockchain. The oracle polls for unprocessed records from external service providers and automatically handles blockchain submission.
 
 ## Quick Start
 
